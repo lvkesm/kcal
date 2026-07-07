@@ -3,152 +3,671 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>AI Étel Kalória Számláló</title>
+    <title>AI Étel Kalória & Makró Számláló</title>
+    <!-- Tailwind CSS a modern, reszponzív dizájnhoz -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- FontAwesome ikonok a prémium kinézethez -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    colors: {
+                        darkBg: '#0F172A',
+                        cardBg: '#1E293B',
+                        accentGreen: '#10B981',
+                        accentOrange: '#F59E0B',
+                        accentRed: '#EF4444'
+                    }
+                }
+            }
+        }
+    </script>
     <style>
-        body { font-family: 'Segoe UI', Arial, sans-serif; background: #121212; color: #fff; max-width: 500px; margin: 0 auto; padding: 20px; text-align: center; }
-        .card { background: #1e1e1e; padding: 20px; border-radius: 15px; box-shadow: 0 4px 15px rgba(0,0,0,0.5); margin-bottom: 15px; }
-        input[type="file"] { display: none; }
-        .upload-btn { background: #ff4757; color: white; padding: 12px 24px; border-radius: 25px; cursor: pointer; display: inline-block; margin: 15px 0; font-weight: bold; }
-        button.submit-btn { background: #2ed573; color: white; border: none; padding: 12px 24px; border-radius: 25px; font-weight: bold; cursor: pointer; width: 100%; display: none; }
-        #preview { max-width: 100%; max-height: 250px; border-radius: 10px; margin-top: 15px; display: none; }
-        #loading { display: none; margin: 15px 0; color: #ffa502; font-weight: bold; }
-        #results { margin-top: 20px; text-align: left; background: #2f3542; padding: 15px; border-radius: 10px; display: none; }
-        .macro { display: flex; justify-content: space-between; border-bottom: 1px solid #4b5563; padding: 8px 0; }
-        .settings { background: #222; padding: 10px; border-radius: 10px; font-size: 12px; margin-top: 20px; text-align: left; }
-        .settings input { background: #333; color: white; border: 1px solid #444; padding: 5px; width: 80%; border-radius: 5px; }
+        /* Egyedi finomhangolások a görgetéshez és animációkhoz */
+        ::-webkit-scrollbar {
+            width: 6px;
+        }
+        ::-webkit-scrollbar-track {
+            background: #0F172A;
+        }
+        ::-webkit-scrollbar-thumb {
+            background: #334155;
+            border-radius: 3px;
+        }
     </style>
 </head>
-<body>
+<body class="bg-darkBg text-slate-100 min-h-screen flex flex-col justify-between antialiased">
 
-    <div class="card">
-        <h2>AI Étel Elemző</h2>
-        <p>Fotózz le egy ételt a makrók megtekintéséhez!</p>
-        
-        <label for="imageInput" class="upload-btn">Kamera / Galéria</label>
-        <input type="file" id="imageInput" accept="image/*" capture="environment">
-        
-        <br>
-        <img id="preview" alt="Előnézet">
-        
-        <button id="submitBtn" class="submit-btn">Elemzés indítása</button>
-        
-        <div id="loading">Gemini épp számol... 🧠</div>
-        
-        <div id="results">
-            <h3 id="foodName" style="color: #2ed573; margin-top: 0; text-align: center;"></h3>
-            <div class="macro"><span>Kalória:</span> <strong id="resCal"></strong></div>
-            <div class="macro"><span>Fehérje:</span> <strong id="resProt"></strong></div>
-            <div class="macro"><span>Szénhidrát:</span> <strong id="resCarb"></strong></div>
-            <div class="macro"><span>Zsír:</span> <strong id="resFat"></strong></div>
+    <!-- Fő fejléc -->
+    <header class="border-b border-slate-800 bg-slate-900/80 backdrop-blur sticky top-0 z-40 px-4 py-3">
+        <div class="max-w-md mx-auto flex items-center justify-between">
+            <div class="flex items-center gap-2">
+                <div class="bg-gradient-to-tr from-emerald-500 to-teal-400 p-2 rounded-xl shadow-lg">
+                    <i class="fa-solid fa-shrimp text-slate-950 text-lg"></i>
+                </div>
+                <div>
+                    <h1 class="font-bold text-base tracking-tight">KCal <span class="text-xs text-emerald-400">AI</span></h1>
+                    <p class="text-[10px] text-slate-400">made by lvke</p>
+                </div>
+            </div>
+            
+            <!-- Beállítások Gomb -->
+            <button id="settingsToggle" class="p-2 text-slate-400 hover:text-emerald-400 transition-colors relative">
+                <i class="fa-solid fa-gear text-lg"></i>
+                <span id="keyStatusBadge" class="absolute top-1 right-1 w-2.5 h-2.5 rounded-full bg-red-500 border border-slate-900"></span>
+            </button>
+        </div>
+    </header>
+
+    <!-- Fő tartalom container -->
+    <main class="flex-1 w-full max-w-md mx-auto px-4 py-6 space-y-6">
+
+        <!-- Értesítési sáv (Saját Alert helyettesítő) -->
+        <div id="notificationBanner" class="hidden transform translate-y-2 transition-all duration-300 p-4 rounded-xl flex items-start gap-3 shadow-lg">
+            <div id="notificationIcon" class="mt-0.5"></div>
+            <div class="flex-1">
+                <h4 id="notificationTitle" class="font-semibold text-sm"></h4>
+                <p id="notificationText" class="text-xs text-slate-300 mt-1"></p>
+            </div>
+            <button onclick="closeNotification()" class="text-slate-400 hover:text-slate-100">
+                <i class="fa-solid fa-xmark"></i>
+            </button>
+        </div>
+
+        <!-- Kulcs hiányzik figyelmeztetés -->
+        <div id="keyMissingAlert" class="bg-amber-500/10 border border-amber-500/30 rounded-2xl p-4 flex gap-3 items-start">
+            <i class="fa-solid fa-circle-exclamation text-amber-500 text-lg mt-0.5"></i>
+            <div class="flex-1">
+                <h3 class="font-semibold text-sm text-amber-400">Nincs beállítva API kulcs!</h3>
+                <p class="text-xs text-slate-300 mt-1 leading-relaxed">Kérlek kattints a jobb felső sarokban lévő fogaskerék ikonra, és mentsd el a Google Gemini API kulcsodat az elemzés megkezdéséhez.</p>
+            </div>
+        </div>
+
+        <!-- Fő Kártya -->
+        <div class="bg-slate-800/50 border border-slate-700/50 rounded-3xl p-5 shadow-xl backdrop-blur">
+            <div class="text-center space-y-2 mb-6">
+                <h2 class="text-lg font-bold">Fotózz vagy tölts fel ételt</h2>
+                <p class="text-xs text-slate-400">Az AI felismeri az ételt, és megbecsüli a makróit.</p>
+            </div>
+
+            <!-- Feltöltő zóna / Kamera indító -->
+            <div id="dropzone" class="border-2 border-dashed border-slate-600 hover:border-emerald-500/50 rounded-2xl p-6 transition-all bg-slate-900/40 cursor-pointer group text-center relative overflow-hidden min-h-[180px] flex flex-col items-center justify-center">
+                <input type="file" id="imageInput" accept="image/*" capture="environment" class="absolute inset-0 opacity-0 cursor-pointer z-10">
+                
+                <!-- Alapértelmezett nézet -->
+                <div id="uploadPrompt" class="space-y-3 pointer-events-none transition-all duration-300">
+                    <div class="w-14 h-14 rounded-full bg-slate-800 flex items-center justify-center mx-auto group-hover:scale-110 group-hover:bg-emerald-500/10 group-hover:text-emerald-400 transition-all text-slate-400">
+                        <i class="fa-solid fa-camera text-xl"></i>
+                    </div>
+                    <div>
+                        <span class="text-sm font-semibold text-emerald-400">Koppints a fotózáshoz</span>
+                        <p class="text-[10px] text-slate-500 mt-1">vagy válaszd ki a galériából</p>
+                    </div>
+                </div>
+
+                <!-- Kép előnézet -->
+                <div id="previewContainer" class="hidden w-full h-full absolute inset-0 bg-slate-950 flex items-center justify-center">
+                    <img id="imagePreview" src="" class="w-full h-full object-cover" alt="Étel előnézet">
+                    <div class="absolute bottom-3 right-3 bg-slate-900/80 backdrop-blur text-xs px-3 py-1.5 rounded-full border border-slate-700 text-slate-300 font-medium">
+                        <i class="fa-solid fa-rotate-left mr-1"></i> Csere
+                    </div>
+                </div>
+            </div>
+
+            <!-- Beküldés gomb -->
+            <button id="analyzeBtn" class="hidden w-full mt-5 bg-gradient-to-r from-emerald-500 to-teal-500 text-slate-950 font-bold py-3.5 px-6 rounded-2xl shadow-lg shadow-emerald-500/10 hover:shadow-emerald-500/20 active:scale-[0.98] transition-all items-center justify-center gap-2">
+                <i class="fa-solid fa-wand-magic-sparkles"></i> Étel Elemzése
+            </button>
+
+            <!-- Betöltő panel -->
+            <div id="loadingPanel" class="hidden mt-6 text-center py-4 space-y-4">
+                <div class="relative w-16 h-16 mx-auto">
+                    <!-- Forgó spinner -->
+                    <div class="absolute inset-0 rounded-full border-4 border-slate-700"></div>
+                    <div class="absolute inset-0 rounded-full border-4 border-t-emerald-500 animate-spin"></div>
+                </div>
+                <div class="space-y-1">
+                    <p id="loadingStatus" class="text-sm font-medium text-emerald-400">Kapcsolódás a Gemini AI-hoz...</p>
+                    <p class="text-[10px] text-slate-500">Ez általában 3-5 másodpercet vesz igénybe</p>
+                </div>
+            </div>
+        </div>
+
+        <!-- Eredmény Kártya -->
+        <div id="resultsCard" class="hidden bg-slate-800/50 border border-slate-700/50 rounded-3xl p-5 shadow-xl backdrop-blur space-y-5 animate-fade-in">
+            <div class="flex items-start justify-between border-b border-slate-700 pb-4">
+                <div>
+                    <h3 id="resFoodName" class="text-xl font-bold text-emerald-400"></h3>
+                    <p id="resPortion" class="text-xs text-slate-400 mt-0.5"></p>
+                </div>
+                <div class="bg-emerald-500/10 border border-emerald-500/20 px-3 py-1 rounded-full text-center">
+                    <span id="resCalories" class="text-lg font-black text-emerald-400 block leading-tight"></span>
+                    <span class="text-[9px] text-slate-400 uppercase tracking-wider block font-semibold">Kalória</span>
+                </div>
+            </div>
+
+            <!-- Makrók progress bar-ral -->
+            <div class="space-y-4">
+                <h4 class="text-xs font-semibold uppercase tracking-wider text-slate-400">Makrótápanyagok</h4>
+                
+                <!-- Fehérje -->
+                <div class="space-y-1.5">
+                    <div class="flex justify-between text-sm font-medium">
+                        <span class="flex items-center gap-1.5"><span class="w-2.5 h-2.5 rounded-full bg-indigo-500"></span>Fehérje</span>
+                        <span id="resProtein" class="font-bold text-indigo-400"></span>
+                    </div>
+                    <div class="h-2 w-full bg-slate-700 rounded-full overflow-hidden">
+                        <div id="barProtein" class="h-full bg-indigo-500 rounded-full transition-all duration-1000" style="width: 0%"></div>
+                    </div>
+                </div>
+
+                <!-- Szénhidrát -->
+                <div class="space-y-1.5">
+                    <div class="flex justify-between text-sm font-medium">
+                        <span class="flex items-center gap-1.5"><span class="w-2.5 h-2.5 rounded-full bg-amber-500"></span>Szénhidrát</span>
+                        <span id="resCarbs" class="font-bold text-amber-400"></span>
+                    </div>
+                    <div class="h-2 w-full bg-slate-700 rounded-full overflow-hidden">
+                        <div id="barCarbs" class="h-full bg-amber-500 rounded-full transition-all duration-1000" style="width: 0%"></div>
+                    </div>
+                </div>
+
+                <!-- Zsír -->
+                <div class="space-y-1.5">
+                    <div class="flex justify-between text-sm font-medium">
+                        <span class="flex items-center gap-1.5"><span class="w-2.5 h-2.5 rounded-full bg-rose-500"></span>Zsír</span>
+                        <span id="resFat" class="font-bold text-rose-400"></span>
+                    </div>
+                    <div class="h-2 w-full bg-slate-700 rounded-full overflow-hidden">
+                        <div id="barFat" class="h-full bg-rose-500 rounded-full transition-all duration-1000" style="width: 0%"></div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Magyarázat / Leírás -->
+            <div class="bg-slate-900/60 rounded-2xl p-4 border border-slate-700/30">
+                <h5 class="text-xs font-semibold text-slate-400 uppercase tracking-wider mb-1.5 flex items-center gap-1.5">
+                    <i class="fa-solid fa-circle-info text-emerald-400"></i> AI Értékelés
+                </h5>
+                <p id="resExplanation" class="text-xs text-slate-300 leading-relaxed"></p>
+            </div>
+        </div>
+
+        <!-- Előzmények / Napló -->
+        <div id="historyCard" class="hidden bg-slate-800/30 border border-slate-700/30 rounded-3xl p-5 shadow-lg space-y-4">
+            <div class="flex items-center justify-between">
+                <h3 class="font-bold text-sm flex items-center gap-2"><i class="fa-solid fa-clock-rotate-left text-slate-400"></i> Legutóbbi ételeid</h3>
+                <button onclick="clearHistory()" class="text-[10px] text-slate-500 hover:text-rose-400 transition-colors">Mind törlése</button>
+            </div>
+            <div id="historyList" class="space-y-2.5 max-h-[220px] overflow-y-auto pr-1">
+                <!-- Dinamikus előzmény elemek -->
+            </div>
+        </div>
+
+    </main>
+
+    <!-- Beállítások Modal -->
+    <div id="settingsModal" class="fixed inset-0 bg-slate-950/80 backdrop-blur-sm z-50 flex items-end justify-center hidden p-4">
+        <div class="bg-slate-900 border border-slate-800 w-full max-w-md rounded-t-[32px] md:rounded-[32px] p-6 shadow-2xl space-y-6 transform translate-y-full transition-transform duration-300">
+            
+            <div class="flex items-center justify-between">
+                <div class="flex items-center gap-2">
+                    <i class="fa-solid fa-gears text-emerald-400 text-lg"></i>
+                    <h3 class="font-bold text-lg">Gépház</h3>
+                </div>
+                <button id="settingsClose" class="w-8 h-8 rounded-full bg-slate-800 hover:bg-slate-700 flex items-center justify-center text-slate-300 transition-colors">
+                    <i class="fa-solid fa-xmark"></i>
+                </button>
+            </div>
+
+            <div class="space-y-4">
+                <div class="space-y-2">
+                    <label class="text-xs font-bold text-slate-400 uppercase tracking-wider">Gemini API Kulcsod</label>
+                    <div class="relative">
+                        <input type="password" id="apiKeyInput" placeholder="AI Studio API kulcs..." class="w-full bg-slate-950 border border-slate-800 rounded-xl py-3 px-4 text-sm text-slate-100 placeholder-slate-600 focus:outline-none focus:border-emerald-500 transition-all pr-12">
+                        <button type="button" id="toggleKeyVisibility" class="absolute right-3 top-3 text-slate-500 hover:text-slate-300">
+                            <i class="fa-solid fa-eye"></i>
+                        </button>
+                    </div>
+                    <p class="text-[10px] text-slate-500 leading-relaxed">
+                        Az API kulcsodat biztonságosan, kizárólag a telefonod helyi tárhelyén (<code class="bg-slate-950 px-1 py-0.5 rounded text-emerald-400 text-[9px]">localStorage</code>) tároljuk. Soha nem küldjük el harmadik félnek vagy külső szerverre.
+                    </p>
+                </div>
+
+                <div class="bg-slate-950 p-4 rounded-xl border border-slate-800 space-y-2">
+                    <h4 class="text-xs font-bold text-slate-300 flex items-center gap-1.5">
+                        <i class="fa-solid fa-key text-amber-500"></i> Hogy szerezhetsz kulcsot?
+                    </h4>
+                    <ol class="text-[11px] text-slate-400 list-decimal pl-4 space-y-1">
+                        <li>Látogass el a <a href="https://aistudio.google.com/" target="_blank" class="text-emerald-400 hover:underline inline-flex items-center gap-0.5 font-semibold">Google AI Studio<i class="fa-solid fa-up-right-from-square text-[8px]"></i></a> oldalra.</li>
+                        <li>Kattints a <strong>"Get API Key"</strong> gombra.</li>
+                        <li>Hozz létre egy új kulcsot teljesen ingyen.</li>
+                        <li>Másold ki, illeszd be ide felülre, és mentsd el!</li>
+                    </ol>
+                </div>
+
+                <button id="saveKeyBtn" class="w-full bg-emerald-500 hover:bg-emerald-400 text-slate-950 font-bold py-3.5 rounded-xl shadow-lg shadow-emerald-500/10 active:scale-[0.98] transition-all">
+                    Beállítások Mentése
+                </button>
+            </div>
         </div>
     </div>
 
-    <!-- Biztonságos API kulcs tároló a telefonodnak -->
-    <div class="settings">
-        <h4>⚙️ Beállítások (Csak neked látható)</h4>
-        <label for="apiKey">Gemini API Kulcs:</label>
-        <input type="password" id="apiKey" placeholder="AI Studio kulcs helye...">
-        <button onclick="saveKey()" style="background: #57606f; color: white; border: none; padding: 5px 10px; border-radius: 5px; cursor: pointer;">Mentés</button>
-    </div>
+    <!-- Lábléc -->
+    <footer class="py-4 border-t border-slate-850 bg-slate-900/40 text-center text-[10px] text-slate-500">
+        <p>© 2026 MacroLens AI • Privát & Helyi adatok</p>
+    </footer>
 
+    <!-- JavaScript programkód -->
     <script>
+        // DOM Elemek
         const imageInput = document.getElementById('imageInput');
-        const preview = document.getElementById('preview');
-        const submitBtn = document.getElementById('submitBtn');
-        const loading = document.getElementById('loading');
-        const results = document.getElementById('results');
-        const apiKeyInput = document.getElementById('apiKey');
+        const dropzone = document.getElementById('dropzone');
+        const previewContainer = document.getElementById('previewContainer');
+        const imagePreview = document.getElementById('imagePreview');
+        const analyzeBtn = document.getElementById('analyzeBtn');
+        const loadingPanel = document.getElementById('loadingPanel');
+        const loadingStatus = document.getElementById('loadingStatus');
+        const uploadPrompt = document.getElementById('uploadPrompt');
+        const resultsCard = document.getElementById('resultsCard');
+        const keyMissingAlert = document.getElementById('keyMissingAlert');
+        const keyStatusBadge = document.getElementById('keyStatusBadge');
+        
+        // Eredmény kijelző elemek
+        const resFoodName = document.getElementById('resFoodName');
+        const resPortion = document.getElementById('resPortion');
+        const resCalories = document.getElementById('resCalories');
+        const resProtein = document.getElementById('resProtein');
+        const resCarbs = document.getElementById('resCarbs');
+        const resFat = document.getElementById('resFat');
+        const resExplanation = document.getElementById('resExplanation');
+        
+        // Makró csík animátorok
+        const barProtein = document.getElementById('barProtein');
+        const barCarbs = document.getElementById('barCarbs');
+        const barFat = document.getElementById('barFat');
 
-        // Betöltéskor ellenőrizzük, van-e már elmentett kulcs
-        window.onload = function() {
-            const savedKey = localStorage.getItem('gemini_api_key');
-            if (savedKey) {
-                apiKeyInput.value = savedKey;
+        // Beállítások és Modulok
+        const settingsToggle = document.getElementById('settingsToggle');
+        const settingsModal = document.getElementById('settingsModal');
+        const settingsClose = document.getElementById('settingsClose');
+        const apiKeyInput = document.getElementById('apiKeyInput');
+        const toggleKeyVisibility = document.getElementById('toggleKeyVisibility');
+        const saveKeyBtn = document.getElementById('saveKeyBtn');
+
+        // Értesítés és Előzmények
+        const notificationBanner = document.getElementById('notificationBanner');
+        const notificationIcon = document.getElementById('notificationIcon');
+        const notificationTitle = document.getElementById('notificationTitle');
+        const notificationText = document.getElementById('notificationText');
+        const historyCard = document.getElementById('historyCard');
+        const historyList = document.getElementById('historyList');
+
+        // Kezdő állapotok betöltése
+        window.addEventListener('DOMContentLoaded', () => {
+            checkApiKeyStatus();
+            renderHistory();
+        });
+
+        // API Kulcs állapotának ellenőrzése
+        function checkApiKeyStatus() {
+            const key = localStorage.getItem('gemini_api_key');
+            if (key && key.trim().length > 10) {
+                keyMissingAlert.classList.add('hidden');
+                keyStatusBadge.classList.remove('bg-red-500');
+                keyStatusBadge.classList.add('bg-emerald-500');
+                apiKeyInput.value = key;
+                return true;
+            } else {
+                keyMissingAlert.classList.remove('hidden');
+                keyStatusBadge.classList.remove('bg-emerald-500');
+                keyStatusBadge.classList.add('bg-red-500');
+                return false;
             }
-        };
-
-        function saveKey() {
-            localStorage.setItem('gemini_api_key', apiKeyInput.value.trim());
-            alert('API kulcs sikeresen elmentve a telefonodon!');
         }
 
+        // Egyéni értesítés megjelenítése
+        function showNotification(title, text, type = 'error') {
+            notificationBanner.className = "p-4 rounded-2xl flex items-start gap-3 shadow-lg transform translate-y-0 transition-all duration-300";
+            
+            if (type === 'error') {
+                notificationBanner.classList.add('bg-rose-500/10', 'border', 'border-rose-500/30');
+                notificationIcon.innerHTML = `<i class="fa-solid fa-circle-xmark text-rose-500 text-lg"></i>`;
+                notificationTitle.className = "font-semibold text-sm text-rose-400";
+            } else if (type === 'success') {
+                notificationBanner.classList.add('bg-emerald-500/10', 'border', 'border-emerald-500/30');
+                notificationIcon.innerHTML = `<i class="fa-solid fa-circle-check text-emerald-500 text-lg"></i>`;
+                notificationTitle.className = "font-semibold text-sm text-emerald-400";
+            } else {
+                notificationBanner.classList.add('bg-amber-500/10', 'border', 'border-amber-500/30');
+                notificationIcon.innerHTML = `<i class="fa-solid fa-circle-exclamation text-amber-500 text-lg"></i>`;
+                notificationTitle.className = "font-semibold text-sm text-amber-400";
+            }
+
+            notificationTitle.innerText = title;
+            notificationText.innerText = text;
+            notificationBanner.classList.remove('hidden');
+            
+            // Automatikus elrejtés 10 másodperc után
+            setTimeout(() => {
+                closeNotification();
+            }, 10000);
+        }
+
+        function closeNotification() {
+            notificationBanner.classList.add('hidden');
+        }
+
+        // Modal vezérlés
+        settingsToggle.addEventListener('click', () => {
+            settingsModal.classList.remove('hidden');
+            setTimeout(() => {
+                settingsModal.firstElementChild.classList.remove('translate-y-full');
+            }, 10);
+        });
+
+        const closeModal = () => {
+            settingsModal.firstElementChild.classList.add('translate-y-full');
+            setTimeout(() => {
+                settingsModal.classList.add('hidden');
+            }, 300);
+        };
+
+        settingsClose.addEventListener('click', closeModal);
+        settingsModal.addEventListener('click', (e) => {
+            if (e.target === settingsModal) closeModal();
+        });
+
+        // Kulcs láthatóság váltó
+        toggleKeyVisibility.addEventListener('click', () => {
+            const type = apiKeyInput.type === 'password' ? 'text' : 'password';
+            apiKeyInput.type = type;
+            toggleKeyVisibility.innerHTML = type === 'password' ? '<i class="fa-solid fa-eye"></i>' : '<i class="fa-solid fa-eye-slash"></i>';
+        });
+
+        // Beállítások mentése
+        saveKeyBtn.addEventListener('click', () => {
+            const key = apiKeyInput.value.trim();
+            if (key) {
+                localStorage.setItem('gemini_api_key', key);
+                checkApiKeyStatus();
+                showNotification('Sikeres mentés', 'A Gemini API kulcsodat biztonságosan elmentettük a telefonodra!', 'success');
+                closeModal();
+            } else {
+                showNotification('Mentési hiba', 'Kérlek adj meg egy valódi, érvényes API kulcsot!');
+            }
+        });
+
+        // Drag & Drop horgok vizuális visszajelzéshez
+        ['dragenter', 'dragover'].forEach(eventName => {
+            dropzone.addEventListener(eventName, (e) => {
+                e.preventDefault();
+                dropzone.classList.add('border-emerald-500', 'bg-emerald-500/5');
+            }, false);
+        });
+
+        ['dragleave', 'drop'].forEach(eventName => {
+            dropzone.addEventListener(eventName, (e) => {
+                e.preventDefault();
+                dropzone.classList.remove('border-emerald-500', 'bg-emerald-500/5');
+            }, false);
+        });
+
+        // Kép betöltés és tömörítés
         imageInput.addEventListener('change', function() {
             const file = this.files[0];
             if (file) {
-                const reader = new FileReader();
-                reader.onload = function(e) {
-                    preview.src = e.target.result;
-                    preview.style.display = 'inline-block';
-                    submitBtn.style.display = 'block';
-                    results.style.display = 'none';
-                }
-                reader.readAsDataURL(file);
+                handleImageFile(file);
             }
         });
 
-        submitBtn.addEventListener('click', async () => {
-            const file = imageInput.files[0];
-            const apiKey = localStorage.getItem('gemini_api_key');
-
-            if (!apiKey) {
-                alert('Kérlek, először mentsd el a Gemini API kulcsodat alul!');
-                return;
-            }
-            if (!file) return;
-
-            loading.style.display = 'block';
-            submitBtn.style.display = 'none';
-            results.style.display = 'none';
-
-            // Kép átalakítása Base64 formátumba, amit a Gemini közvetlenül megért
+        function handleImageFile(file) {
+            // Előnézet és kezelőfelület frissítése
             const reader = new FileReader();
             reader.readAsDataURL(file);
-            reader.onloadend = async function() {
-                const base64Data = reader.result.split(',')[1];
-                const mimeType = file.type;
+            reader.onload = function(e) {
+                imagePreview.src = e.target.result;
+                previewContainer.classList.remove('hidden');
+                uploadPrompt.classList.add('hidden');
+                analyzeBtn.classList.remove('hidden');
+                analyzeBtn.style.display = 'flex';
+                resultsCard.classList.add('hidden');
+                closeNotification();
+            }
+        }
 
-                const prompt = "Elemezd a képen látható ételt. Becsüld meg a makrotápanyagait egy átlagos adag alapján. Kizárólag egy érvényes JSON objektumot adj vissza, markdown formázás (pl. ```json) nélkül! Szerkezet: {\"food_name\": \"Név\", \"calories\": 0, \"protein\": 0, \"carbs\": 0, \"fat\": 0}";
+        // Kliens oldali kép-tömörítés, hogy gyorsabb legyen az átvitel
+        function compressImage(imgElement, callback) {
+            const maxDimension = 1024; // Megfelelő részletesség az AI-nak, de kicsi fájlméret
+            const canvas = document.createElement('canvas');
+            let width = imgElement.naturalWidth || imgElement.width;
+            let height = imgElement.naturalHeight || imgElement.height;
 
-                const url = `[https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=$](https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=$){apiKey}`;
+            if (width > height) {
+                if (width > maxDimension) {
+                    height = Math.round((height * maxDimension) / width);
+                    width = maxDimension;
+                }
+            } else {
+                if (height > maxDimension) {
+                    width = Math.round((width * maxDimension) / height);
+                    height = maxDimension;
+                }
+            }
+
+            canvas.width = width;
+            canvas.height = height;
+            const ctx = canvas.getContext('2d');
+            ctx.drawImage(imgElement, 0, 0, width, height);
+
+            // JPEG tömörítés 80%-os minőséggel
+            const compressedBase64 = canvas.toDataURL('image/jpeg', 0.8);
+            callback(compressedBase64);
+        }
+
+        // Exponenciális Backoff Fetch implementáció
+        async function fetchWithRetry(url, options, maxRetries = 5) {
+            const delays = [1000, 2000, 4000, 8000, 16000];
+            for (let i = 0; i < maxRetries; i++) {
+                try {
+                    const response = await fetch(url, options);
+                    if (response.ok) return response;
+                    
+                    // Ha az API túlterhelt (pl. 429 vagy 503-as hiba), akkor vár és újrapróbálkozik
+                    if (response.status !== 429 && response.status !== 503 && response.status < 500) {
+                        return response; // Más kliens oldali hiba (pl 400, 403) esetén azonnal visszaadja
+                    }
+                } catch (error) {
+                    if (i === maxRetries - 1) throw error;
+                }
+                
+                // Várakozás az exponenciálisan növekvő késleltetéssel (Do not log retries to console)
+                await new Promise(resolve => setTimeout(resolve, delays[i]));
+            }
+            throw new Error("Minden hálózati újrapróbálkozási kísérlet sikertelen volt.");
+        }
+
+        // Elemzés indítása gombnyomásra
+        analyzeBtn.addEventListener('click', async () => {
+            const apiKey = localStorage.getItem('gemini_api_key');
+            if (!apiKey) {
+                showNotification('Kulcs Hiányzik!', 'Nem találtunk mentett Gemini API kulcsot. Kérlek írd be a Beállításokban!', 'warning');
+                settingsToggle.click();
+                return;
+            }
+
+            // UI átmenetek betöltő módba
+            analyzeBtn.classList.add('hidden');
+            loadingPanel.classList.remove('hidden');
+            resultsCard.classList.add('hidden');
+            loadingStatus.innerText = "Kép optimalizálása...";
+
+            // Kép tömörítése és beküldése
+            compressImage(imagePreview, async (compressedBase64) => {
+                const base64Data = compressedBase64.split(',')[1];
+                const mimeType = 'image/jpeg';
+
+                loadingStatus.innerText = "Kapcsolódás a Gemini AI-hoz...";
+
+                // A rendszer prompt, ami garantálja, hogy az AI a kért strukturált sémát követi
+                const systemPrompt = "Te egy mesterséges intelligenciával támogatott dietetikus szakértő vagy. Feladatod a képen látható ételek azonosítása és tápértékének (kalória, fehérje, szénhidrát, zsír) becslése. Mindig magyarul válaszolj.";
+                
+                const userPrompt = "Elemezd a képen látható ételt. Becsüld meg az összesített kalória- és makrotápanyag értékeket egy átlagos vagy látható adag alapján. Törekedj a pontosságra.";
+
+                // Gemini 2.5 Flash Stabil API URL
+                const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${apiKey}`;
+
+                const payload = {
+                    contents: [{
+                        role: "user",
+                        parts: [
+                            { text: userPrompt },
+                            { inlineData: { mimeType: mimeType, data: base64Data } }
+                        ]
+                    }],
+                    systemInstruction: {
+                        parts: [{ text: systemPrompt }]
+                    },
+                    // Szigorú JSON kényszerítés a Google API-val
+                    generationConfig: {
+                        responseMimeType: "application/json",
+                        responseSchema: {
+                            type: "OBJECT",
+                            properties: {
+                                food_name: { type: "STRING" },
+                                portion_size: { type: "STRING" },
+                                calories: { type: "INTEGER" },
+                                protein: { type: "INTEGER" },
+                                carbs: { type: "INTEGER" },
+                                fat: { type: "INTEGER" },
+                                explanation: { type: "STRING" }
+                            },
+                            required: ["food_name", "portion_size", "calories", "protein", "carbs", "fat", "explanation"]
+                        }
+                    }
+                };
 
                 try {
-                    const response = await fetch(url, {
+                    loadingStatus.innerText = "Tápértékek kiszámítása...";
+                    
+                    const response = await fetchWithRetry(url, {
                         method: "POST",
                         headers: { "Content-Type": "application/json" },
-                        body: JSON.stringify({
-                            contents: [{
-                                parts: [
-                                    { text: prompt },
-                                    { inlineData: { mimeType: mimeType, data: base64Data } }
-                                ]
-                            }]
-                        })
+                        body: JSON.stringify(payload)
                     });
 
-                    const jsonResponse = await response.json();
-                    let responseText = jsonResponse.candidates[0].content.parts[0].text.strip;
-                    
-                    // Tisztítás, ha mégis rakott volna bele jeleket az AI
-                    responseText = responseText.replace(/```json/g, "").replace(/```/g, "").trim();
-                    
-                    const data = JSON.parse(responseText);
+                    if (!response.ok) {
+                        const errorDetails = await response.json().catch(() => ({}));
+                        const message = errorDetails.error?.message || `Hibakód: ${response.status}`;
+                        throw new Error(message);
+                    }
 
-                    document.getElementById('foodName').innerText = data.food_name;
-                    document.getElementById('resCal').innerText = data.calories + ' kcal';
-                    document.getElementById('resProt').innerText = data.protein + ' g';
-                    document.getElementById('resCarb').innerText = data.carbs + ' g';
-                    document.getElementById('resFat').innerText = data.fat + ' g';
-                    results.style.display = 'block';
+                    const jsonResponse = await response.json();
+                    const rawText = jsonResponse.candidates[0].content.parts[0].text;
+                    const data = JSON.parse(rawText.trim());
+
+                    // Eredmények kirajzolása
+                    displayResults(data);
+                    
+                    // Mentés az előzményekbe
+                    saveToHistory(data);
 
                 } catch (err) {
-                    alert('Hiba történt az elemzés során. Ellenőrizd az API kulcsot!');
                     console.error(err);
+                    showNotification('Sikertelen elemzés', `Hiba történt az elemzés során. Részletek: ${err.message}. Kérlek ellenőrizd az API kulcsod érvényességét.`);
+                    analyzeBtn.classList.remove('hidden');
                 } finally {
-                    loading.style.display = 'none';
-                    submitBtn.style.display = 'block';
+                    loadingPanel.classList.add('hidden');
                 }
-            };
+            });
         });
+
+        // Eredmények dinamikus megjelenítése és sávok animálása
+        function displayResults(data) {
+            resFoodName.innerText = data.food_name;
+            resPortion.innerText = `Becsült adag: ${data.portion_size}`;
+            resCalories.innerText = data.calories;
+            resProtein.innerText = `${data.protein}g`;
+            resCarbs.innerText = `${data.carbs}g`;
+            resFat.innerText = `${data.fat}g`;
+            resExplanation.innerText = data.explanation;
+
+            // Százalékos sávok kiszámítása (egyszerű látvány-arányosító a vizualizációhoz)
+            const totalMacros = (data.protein + data.carbs + data.fat) || 1;
+            const protPct = Math.min(Math.max((data.protein / totalMacros) * 100, 5), 100);
+            const carbsPct = Math.min(Math.max((data.carbs / totalMacros) * 100, 5), 100);
+            const fatPct = Math.min(Math.max((data.fat / totalMacros) * 100, 5), 100);
+
+            // Megjelenítés és animáció indítása kis csúsztatással
+            resultsCard.classList.remove('hidden');
+            
+            setTimeout(() => {
+                barProtein.style.width = `${protPct}%`;
+                barCarbs.style.width = `${carbsPct}%`;
+                barFat.style.width = `${fatPct}%`;
+            }, 50);
+
+            // Görgetés az eredményhez mobilon
+            resultsCard.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+        }
+
+        // Előzmények kezelése a helyi böngésző tárhelyen
+        function saveToHistory(data) {
+            let history = JSON.parse(localStorage.getItem('macrolens_history') || '[]');
+            
+            // Csak az utolsó 10 élelmiszert tároljuk
+            const newItem = {
+                id: Date.now(),
+                food_name: data.food_name,
+                calories: data.calories,
+                protein: data.protein,
+                carbs: data.carbs,
+                fat: data.fat,
+                date: new Date().toLocaleDateString('hu-HU', { hour: '2-digit', minute: '2-digit' })
+            };
+
+            history.unshift(newItem);
+            if (history.length > 10) history.pop();
+
+            localStorage.setItem('macrolens_history', JSON.stringify(history));
+            renderHistory();
+        }
+
+        function renderHistory() {
+            const history = JSON.parse(localStorage.getItem('macrolens_history') || '[]');
+            if (history.length === 0) {
+                historyCard.classList.add('hidden');
+                return;
+            }
+
+            historyCard.classList.remove('hidden');
+            historyList.innerHTML = history.map(item => `
+                <div class="bg-slate-900/60 hover:bg-slate-900/90 transition-colors rounded-xl p-3 flex justify-between items-center border border-slate-800">
+                    <div class="flex-1 min-w-0 pr-2">
+                        <h4 class="font-bold text-xs text-slate-200 truncate">${item.food_name}</h4>
+                        <div class="flex gap-2 text-[10px] text-slate-400 mt-1">
+                            <span>F: ${item.protein}g</span>
+                            <span>Sz: ${item.carbs}g</span>
+                            <span>Z: ${item.fat}g</span>
+                        </div>
+                    </div>
+                    <div class="text-right flex items-center gap-3">
+                        <div>
+                            <span class="text-xs font-black text-emerald-400 block">${item.calories} kcal</span>
+                            <span class="text-[8px] text-slate-500 block">${item.date}</span>
+                        </div>
+                    </div>
+                </div>
+            `).join('');
+        }
+
+        function clearHistory() {
+            if(confirm('Biztosan törölni szeretnéd a mentett ételeket az előzményekből?')) {
+                localStorage.removeItem('macrolens_history');
+                renderHistory();
+            }
+        }
     </script>
 </body>
 </html>
