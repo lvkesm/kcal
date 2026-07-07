@@ -48,7 +48,7 @@
                 </div>
                 <div>
                     <h1 class="font-bold text-base tracking-tight">KCal <span class="text-xs text-emerald-400">AI</span></h1>
-                    <p class="text-[10px] text-slate-400">made by lvke</p>
+                    <p class="text-[10px] text-slate-400">made by levi</p>
                 </div>
             </div>
             
@@ -113,6 +113,14 @@
                         <i class="fa-solid fa-rotate-left mr-1"></i> Csere
                     </div>
                 </div>
+            </div>
+
+            <!-- Megjegyzés / Extra részletek mező -->
+            <div id="noteContainer" class="hidden mt-4 text-left space-y-1.5 transition-all duration-300">
+                <label for="noteInput" class="text-xs font-bold text-slate-300 flex items-center gap-1.5 uppercase tracking-wide">
+                    <i class="fa-regular fa-comment-dots text-emerald-400"></i> Megjegyzések / Extra infók az ételről
+                </label>
+                <textarea id="noteInput" rows="3" placeholder="Pl.: Mirelit pizza, gouda sajt van rajta. Kb. 350g az egész, vagy 100g-ban: 240 kcal, 8g fehérje, 30g szh, 10g zsír van." class="w-full bg-slate-900/60 border border-slate-700/60 focus:border-emerald-500/80 rounded-xl py-2.5 px-3.5 text-xs text-slate-100 placeholder-slate-500 focus:outline-none focus:ring-1 focus:ring-emerald-500/30 transition-all resize-none leading-relaxed"></textarea>
             </div>
 
             <!-- Beküldés gomb -->
@@ -243,7 +251,7 @@
                         <li>Látogass el a <a href="https://aistudio.google.com/" target="_blank" class="text-emerald-400 hover:underline inline-flex items-center gap-0.5 font-semibold">Google AI Studio<i class="fa-solid fa-up-right-from-square text-[8px]"></i></a> oldalra.</li>
                         <li>Kattints a <strong>"Get API Key"</strong> gombra.</li>
                         <li>Hozz létre egy új kulcsot teljesen ingyen.</li>
-                        <li>Másold ki, illeszd be ide felülre, és mentsd el!</li>
+                        <li>Másold ki, illeszd be ide felülre, and mentsd el!</li>
                     </ol>
                 </div>
 
@@ -273,6 +281,8 @@
         const resultsCard = document.getElementById('resultsCard');
         const keyMissingAlert = document.getElementById('keyMissingAlert');
         const keyStatusBadge = document.getElementById('keyStatusBadge');
+        const noteContainer = document.getElementById('noteContainer');
+        const noteInput = document.getElementById('noteInput');
         
         // Eredmény kijelző elemek
         const resFoodName = document.getElementById('resFoodName');
@@ -430,6 +440,7 @@
                 imagePreview.src = e.target.result;
                 previewContainer.classList.remove('hidden');
                 uploadPrompt.classList.add('hidden');
+                noteContainer.classList.remove('hidden'); // Megjegyzés doboz mutatása kép után
                 analyzeBtn.classList.remove('hidden');
                 analyzeBtn.style.display = 'flex';
                 resultsCard.classList.add('hidden');
@@ -511,9 +522,15 @@
                 loadingStatus.innerText = "Kapcsolódás a Gemini AI-hoz...";
 
                 // A rendszer prompt, ami garantálja, hogy az AI a kért strukturált sémát követi
-                const systemPrompt = "Te egy mesterséges intelligenciával támogatott dietetikus szakértő vagy. Feladatod a képen látható ételek azonosítása és tápértékének (kalória, fehérje, szénhidrát, zsír) becslése. Mindig magyarul válaszolj.";
+                const systemPrompt = "Te egy mesterséges intelligenciával támogatott dietetikus szakértő vagy. Feladatod a képen látható ételek azonosítása és tápértékének (kalória, fehérje, szénhidrát, zsír) becslése. Vegyél figyelembe minden kiegészítő információt, összetevőt, ismert súlyt vagy 100g-ra vetített tápérték adatot, amit a felhasználó megad! Mindig magyarul válaszolj.";
                 
-                const userPrompt = "Elemezd a képen látható ételt. Becsüld meg az összesített kalória- és makrotápanyag értékeket egy átlagos vagy látható adag alapján. Törekedj a pontosságra.";
+                // Felhasználói prompt felépítése, beleértve a megjegyzést is
+                let userPrompt = "Elemezd a képen látható ételt. Becsüld meg az összesített kalória- és makrotápanyag értékeket egy átlagos vagy látható adag alapján. Törekedj a pontosságra.";
+                
+                const userNotes = noteInput.value.trim();
+                if (userNotes) {
+                    userPrompt += `\n\nFONTOS kiegészítő információk a felhasználótól az étel pontosabb elemzéséhez (használd ezeket az adatokat a becslés és számítás során):\n"${userNotes}"`;
+                }
 
                 // Gemini 2.5 Flash Stabil API URL
                 const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${apiKey}`;
